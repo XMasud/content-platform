@@ -28,6 +28,7 @@ class CSVIngestionView(APIView):
         count = 0
         for row in reader:
             raw = RawContent.objects.create(
+                external_id=row["external_id"],
                 source=source,
                 payload=row,
                 status="RECEIVED",
