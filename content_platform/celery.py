@@ -2,7 +2,7 @@ import os
 from celery import Celery
 
 os.environ.setdefault(
-    'DJANGO_SETTINGS_MODULE', 'content-platform.settings' )
+    'DJANGO_SETTINGS_MODULE', 'content_platform.settings' )
 
 app = Celery('content-platform')
 
