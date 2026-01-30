@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'rest_framework',
     'apps.normalization',
-    'django_celery_results'
+    'django_celery_results',
+    'apps.enrichment',
 ]
 
 CELERY_BROKER_URL = "redis://localhost:6379/0"
