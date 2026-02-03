@@ -1,6 +1,7 @@
 from django.db import models
 
 from apps.ingestion.models import RawContent
+from apps.normalization.enums import ProcessingStatus
 
 
 class NormalizedContent(models.Model):
@@ -15,7 +16,7 @@ class NormalizedContent(models.Model):
     )
 
     normalized_payload = models.JSONField()
-    status = models.CharField(max_length=20, default="SUCCESS")
+    status = models.CharField(max_length=20, choices=ProcessingStatus.choices,default=ProcessingStatus.INGESTED)
     error_message = models.TextField(null=True, blank=True)
     processed_at = models.DateTimeField(auto_now=True)
 
