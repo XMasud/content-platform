@@ -1,6 +1,9 @@
 from celery import shared_task
+from django.db import transaction
 
 from apps.ingestion.models import RawContent
+from apps.normalization.enums import ProcessingStatus
+from apps.normalization.models import NormalizedContent
 from apps.normalization.services import ContentNormalizationService
 from apps.enrichment.tasks import enrich_content
 
@@ -21,10 +24,26 @@ def process_raw_content(self, raw_content_id: int):
 
     raw_content = RawContent.objects.get(id=raw_content_id)
 
-    service = ContentNormalizationService()
-    service.process(raw_content)
-    logger.info(f"✅ Normalization done for RawContent ID={raw_content_id}")
+    normalized = ContentNormalizationService().process(raw_content)
 
-    logger.info(f"🔥 Enrichment task started for RawContent ID={raw_content_id}")
-    enrich_content.delay(raw_content_id)
-    logger.info(f"✅ Enrichment done for RawContent ID={raw_content_id}")
+    logger.info(
+        f"✅ Normalization done for RawContent ID={raw_content_id} "
+        f"(NormalizedContent ID={normalized.id})"
+    )
+
+    if normalized.status != ProcessingStatus.NORMALIZED:
+        logger.warning(
+            f"⚠️ Skipping enrichment for NormalizedContent ID={normalized.id}"
+        )
+        return
+
+    logger.info(f"✅ Normalization id ={normalized.id} ")
+
+    # ✅ Ensure DB commit before next async step
+    transaction.on_commit(
+        lambda: enrich_content.delay(normalized.id)
+    )
+
+    logger.info(
+        f"🚀 Enrichment task scheduled for NormalizedContent ID={normalized.id}"
+    )

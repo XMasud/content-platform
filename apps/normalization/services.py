@@ -1,7 +1,7 @@
 from django.db import transaction
-from unicodedata import normalize
 import logging
 
+from .enums import ProcessingStatus
 from .models import NormalizedContent
 from ..ingestion.models import RawContent
 
@@ -12,18 +12,19 @@ class ContentNormalizationService:
 
     @transaction.atomic
     def process(self, raw_content: RawContent):
-        """
-            Entry point for normalization.
-        """
-
         logger.info(f"➡️ Processing RawContent id={raw_content.id}")
 
-        # Prevent duplicate processing (VERY IMPORTANT for Celery retries)
-        if hasattr(raw_content, "normalized"):
+        # ✅ SAFE idempotency check
+        existing = NormalizedContent.objects.filter(
+            raw_content=raw_content
+        ).first()
+
+        if existing:
             logger.warning(
-                f"⚠️ RawContent id={raw_content.id} already normalized"
+                f"⚠️ RawContent id={raw_content.id} already normalized "
+                f"(NormalizedContent id={existing.id})"
             )
-            return raw_content.normalized
+            return existing
 
         try:
             normalized_payload = self._normalize(raw_content)
@@ -31,12 +32,14 @@ class ContentNormalizationService:
             normalized = NormalizedContent.objects.create(
                 raw_content=raw_content,
                 normalized_payload=normalized_payload,
-                status="SUCCESS",
+                status=ProcessingStatus.NORMALIZED,
             )
 
             logger.info(
-                f"✅ NormalizedContent created for RawContent id={raw_content.id}"
+                f"✅ NormalizedContent created for RawContent id={raw_content.id} "
+                f"(NormalizedContent id={normalized.id})"
             )
+
             return normalized
 
         except Exception as e:
@@ -47,7 +50,7 @@ class ContentNormalizationService:
             return NormalizedContent.objects.create(
                 raw_content=raw_content,
                 normalized_payload={},
-                status="FAILED",
+                status=ProcessingStatus.FAILED,
                 error_message=str(e),
             )
 
