@@ -1,12 +1,22 @@
+import logging
+
 from celery import shared_task
 
 from apps.enrichment.models import EnrichedContent
 from apps.enrichment.services import EnrichmentService
 from apps.normalization.models import NormalizedContent
 
+logger = logging.getLogger(__name__)
 
-@shared_task(bind=True, autoretry_for=(Exception,), rettry_backoff=5, retry_kwargs={"max_retries": 3})
+@shared_task(
+    bind=True,
+    autoretry_for=(Exception,),
+    rettry_backoff=5,
+    retry_kwargs={"max_retries": 3}
+)
 def enrich_content(self, normalized_content_id: int):
+    logger.info(f"🔥 Enrichment started for NormalizedContent ID={normalized_content_id}")
+
     content = NormalizedContent.objects.get(id=normalized_content_id)
 
     if hasattr(content, "enriched"):
