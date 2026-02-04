@@ -2,6 +2,7 @@ from celery import shared_task
 from django.db import transaction
 
 from apps.ingestion.models import RawContent
+from apps.normalization.enums import ProcessingStatus
 from apps.normalization.models import NormalizedContent
 from apps.normalization.services import ContentNormalizationService
 from apps.enrichment.tasks import enrich_content
@@ -30,7 +31,7 @@ def process_raw_content(self, raw_content_id: int):
         f"(NormalizedContent ID={normalized.id})"
     )
 
-    if normalized.status != "SUCCESS":
+    if normalized.status != ProcessingStatus.NORMALIZED:
         logger.warning(
             f"⚠️ Skipping enrichment for NormalizedContent ID={normalized.id}"
         )

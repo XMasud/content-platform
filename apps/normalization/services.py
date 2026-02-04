@@ -1,11 +1,12 @@
 from django.db import transaction
-from unicodedata import normalize
 import logging
 
+from .enums import ProcessingStatus
 from .models import NormalizedContent
 from ..ingestion.models import RawContent
 
 logger = logging.getLogger(__name__)
+
 
 class ContentNormalizationService:
 
@@ -31,7 +32,7 @@ class ContentNormalizationService:
             normalized = NormalizedContent.objects.create(
                 raw_content=raw_content,
                 normalized_payload=normalized_payload,
-                status="SUCCESS",
+                status=ProcessingStatus.NORMALIZED,
             )
 
             logger.info(
@@ -49,6 +50,24 @@ class ContentNormalizationService:
             return NormalizedContent.objects.create(
                 raw_content=raw_content,
                 normalized_payload={},
-                status="FAILED",
+                status=ProcessingStatus.FAILED,
                 error_message=str(e),
             )
+
+    def _normalize(self, raw_content: RawContent) -> dict:
+        """
+        Actual transformation logic.
+        Keeps it simple for now.
+        """
+
+        payload = raw_content.payload
+
+        # Example normalization logic
+        return {
+            "source": raw_content.source.name,
+            "external_id": raw_content.external_id,
+            "content": payload,
+            "metadata": {
+                "ingested_at": raw_content.received_at.isoformat()
+            }
+        }
