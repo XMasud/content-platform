@@ -2,6 +2,7 @@ from celery import shared_task
 
 from apps.ingestion.models import RawContent
 from apps.normalization.services import ContentNormalizationService
+from apps.enrichment.tasks import enrich_content
 
 import logging
 logger = logging.getLogger(__name__)
@@ -23,3 +24,7 @@ def process_raw_content(self, raw_content_id: int):
     service = ContentNormalizationService()
     service.process(raw_content)
     logger.info(f"✅ Normalization done for RawContent ID={raw_content_id}")
+
+    logger.info(f"🔥 Enrichment task started for RawContent ID={raw_content_id}")
+    enrich_content.delay(raw_content_id)
+    logger.info(f"✅ Enrichment done for RawContent ID={raw_content_id}")
