@@ -1,8 +1,11 @@
 from django.db import transaction
 import logging
 
+from jsonschema import ValidationError
+
 from .enums import ProcessingStatus
 from .models import NormalizedContent
+from .schemas.normalized_content import NormalizedContentSchema
 from ..ingestion.models import RawContent
 
 logger = logging.getLogger(__name__)
@@ -26,26 +29,13 @@ class ContentNormalizationService:
             )
             return existing
 
+        normalized_payload = self._normalize(raw_content)
+
         try:
-            normalized_payload = self._normalize(raw_content)
+            validated = NormalizedContentSchema(**normalized_payload)
 
-            normalized = NormalizedContent.objects.create(
-                raw_content=raw_content,
-                normalized_payload=normalized_payload,
-                status=ProcessingStatus.NORMALIZED,
-            )
-
-            logger.info(
-                f"✅ NormalizedContent created for RawContent id={raw_content.id} "
-                f"(NormalizedContent id={normalized.id})"
-            )
-
-            return normalized
-
-        except Exception as e:
-            logger.exception(
-                f"❌ Normalization failed for RawContent id={raw_content.id}"
-            )
+        except ValidationError as e:
+            logger.info(f"NormalizedContentSchema validation failed: {e}")
 
             return NormalizedContent.objects.create(
                 raw_content=raw_content,
@@ -53,6 +43,12 @@ class ContentNormalizationService:
                 status=ProcessingStatus.FAILED,
                 error_message=str(e),
             )
+
+        return NormalizedContent.objects.create(
+            raw_content=raw_content,
+            normalized_payload=validated.model_dump(mode="json"),
+            status=ProcessingStatus.NORMALIZED,
+        )
 
     def _normalize(self, raw_content: RawContent) -> dict:
         """
